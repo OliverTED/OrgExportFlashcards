@@ -9,6 +9,8 @@ import uuid
 
 import csv
 
+import os, os.path, re
+
 VERBOSE = False
 
 
@@ -147,23 +149,8 @@ def append_ids(cards):
             
     return changed
 
-def write_csv_flashcards(csvfile, cards):
-    writer = csv.writer(csvfile, quoting=csv.QUOTE_ALL)
-    # writer.writeheader()
-
-    for c in cards:
-        writer.writerow(format_card(c))
-
-def main():
-    parser = argparse.ArgumentParser(description='Extract flashcards from org-files')
-    parser.add_argument('--verbose', type=bool, default=True, help='verbose output')
-    parser.add_argument('org_file', type=str, help='input file')
-    parser.add_argument('csv_file', type=str, help='output file')
-    args = parser.parse_args()
-
-    VERBOSE = args.verbose
-
-    org = parse_org_file(args.org_file)
+def read_org_file_flashcards(org_file):
+    org = parse_org_file(org_file)
     
     flashcards = gather_flashcards(org)
     # print(flashcards)
@@ -174,10 +161,67 @@ def main():
 
     if changed:
         # create backup
-        shutil.copy2(args.org_file, args.org_file+"~")
+        shutil.copy2(org_file, org_file+"~")
 
-        org.save_to_file(args.org_file)
-               
+        org.save_to_file(org_file)
+
+    return flashcards
+
+def read_org_file_or_directory_flashcards(org_files_or_directories):
+    if type(org_files_or_directories) is list:
+        return [c for i in org_files_or_directories\
+                for c in read_org_file_or_directory_flashcards(i)]
+    
+    elif os.path.isdir(org_files_or_directories):
+        results = []
+        
+        for subdir, dirs, files in os.walk(org_files_or_directories):
+            for f in files:
+                if re.match('.*\.org$', f):
+                    results += read_org_file_flashcards(os.path.join(org_files_or_directories, subdir, f))
+        return results
+    
+    elif os.path.isfile(org_files_or_directories):
+        return read_org_file_flashcards(org_files_or_directories)
+        
+def format_latex(string):
+    string = re.sub('(?<!\[)\$\$(?!\])(.*)(?<!\[)\$\$(?!\])', '[$$]\\1[/$$]', string)
+    string = re.sub('(?<!\[)\$(?!\])(.*)(?<!\[)\$(?!\])', '[$]\\1[/$]', string)
+
+    # print(string)
+    
+    return string
+
+def format_cards(cards):
+    data = []
+
+    for c in cards:
+        data.append(tuple([format_latex(str(c)) for c in format_card(c)]))
+
+    print(repr(data))
+    
+    return data
+
+def write_csv_flashcards(csvfile, cards):
+    data = format_cards(cards)
+    
+    writer = csv.writer(csvfile, quoting=csv.QUOTE_ALL)
+    # writer.writeheader()
+
+    for c in data:
+        writer.writerow(c)
+
+def main():
+    parser = argparse.ArgumentParser(description='Extract flashcards from org-files')
+    parser.add_argument('--verbose', type=bool, default=True, help='verbose output')
+    parser.add_argument('--csv_file', type=str, default='flashcards.csv', help='output file') 
+    parser.add_argument('org_files_or_directories', action='append', type=str, help='input file')
+    args = parser.parse_args()
+
+    VERBOSE = args.verbose
+
+    flashcards = read_org_file_or_directory_flashcards(args.org_files_or_directories)
+    
     with open(args.csv_file, 'w') as f:
         write_csv_flashcards(f, flashcards)
 
