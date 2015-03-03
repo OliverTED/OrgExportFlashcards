@@ -185,6 +185,20 @@ def read_org_file_or_directory_flashcards(org_files_or_directories):
         return read_org_file_flashcards(org_files_or_directories)
         
 def format_latex(string):
+    # remove '\r'
+    string = re.sub('\r*\n\r*', '\n', string)
+
+    # remove lines at the en
+    string = re.sub('\n$', '', string)
+
+    # remove empty lines
+    string = re.sub('^[ \t\r]*\n', '\n', string)
+
+    # insert '<br>' for empty lines
+    string = re.sub('\n\n+', '\n<br>\n', string)
+
+    
+    # replace latex math
     string = re.sub('(?<!\[)\$\$(?!\])(.*)(?<!\[)\$\$(?!\])', '[$$]\\1[/$$]', string)
     string = re.sub('(?<!\[)\$(?!\])(.*)(?<!\[)\$(?!\])', '[$]\\1[/$]', string)
 
