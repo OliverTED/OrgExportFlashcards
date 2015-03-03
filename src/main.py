@@ -198,7 +198,7 @@ def format_cards(cards):
     for c in cards:
         data.append(tuple([format_latex(str(c)) for c in format_card(c)]))
 
-    print(repr(data))
+    # print(repr(data))
     
     return data
 
